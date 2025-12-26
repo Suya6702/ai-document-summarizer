@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Document Summarizer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        .container {
+            background: #fff;
+            width: 90%;
+            max-width: 700px;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; margin-bottom: 20px; }
+        textarea {
+            width: 100%;
+            min-height: 140px;
+            padding: 12px;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 10px;
+        }
+        #dropZone {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        select, input[type="checkbox"] {
+            margin-bottom: 10px;
+            margin-right: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .loader { display: none; text-align: center; margin-top: 15px; }
+        .result { margin-top: 20px; display: none; }
+        .result h3 { margin-bottom: 10px; }
+        .result pre {
+            white-space: pre-wrap;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .footer { text-align: center; font-size: 12px; margin-top: 20px; color: #64748b; }
+        #downloadBtn { margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📄 AI Document Summarizer</h1>
+
+    <textarea id="textInput" placeholder="Paste text here (optional)..."></textarea>
+    <div>Word Count: <span id="wordCount">0</span></div>
+
+    <div id="dropZone">
+    Drag & drop a file here or click to upload
+</div>
+
+<div id="fileInfo" style="display:none; margin-bottom:10px;">
+    📄 <span id="fileName"></span>
+    <button id="clearFileBtn" style="margin-left:10px;">❌ Clear</button>
+</div>
+
+<input type="file" id="fileInput" accept=".pdf,.docx" style="display:none;">
+
+
+    <div>
+        <label for="lengthSelect">Summary Length:</label>
+        <select id="lengthSelect">
+            <option value="short">Short</option>
+            <option value="medium" selected>Medium</option>
+            <option value="long">Long</option>
+        </select>
+    </div>
+
+    <div>
+        <label>
+            <input type="checkbox" id="bulletCheckbox">
+            Bullet Points
+        </label>
+        <label>
+            <input type="checkbox" id="darkModeToggle">
+            Dark Mode
+        </label>
+    </div>
+
+    <button id="submitBtn">Summarize</button>
+
+    <div class="loader" id="loader">⏳ Summarizing... please wait</div>
+
+    <div class="result" id="result">
+        <h3>Summary</h3>
+        <pre id="summaryText"></pre>
+        <button id="downloadBtn">💾 Download Summary</button>
+    </div>
+
+    <div class="footer">
+        Powered by FastAPI & Transformers
+    </div>
+</div>
+
+<script>
+const btn = document.getElementById("submitBtn");
+const loader = document.getElementById("loader");
+const result = document.getElementById("result");
+const summaryText = document.getElementById("summaryText");
+const textInput = document.getElementById("textInput");
+const wordCount = document.getElementById("wordCount");
+const fileInput = document.getElementById("fileInput");
+const dropZone = document.getElementById("dropZone");
+const lengthSelect = document.getElementById("lengthSelect");
+const bulletCheckbox = document.getElementById("bulletCheckbox");
+const darkModeToggle = document.getElementById("darkModeToggle");
+const downloadBtn = document.getElementById("downloadBtn");
+
+// Word count
+textInput.addEventListener("input", () => {
+    const count = textInput.value.trim().split(/\s+/).filter(w => w).length;
+    wordCount.textContent = count;
+});
+const fileInfo = document.getElementById("fileInfo");
+const fileNameSpan = document.getElementById("fileName");
+const clearFileBtn = document.getElementById("clearFileBtn");
+
+// Prevent browser default behavior
+["dragenter","dragover","dragleave","drop"].forEach(event => {
+    document.addEventListener(event, e => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+});
+
+// Click to upload
+dropZone.addEventListener("click", () => fileInput.click());
+
+// Drag styling
+dropZone.addEventListener("dragover", () => {
+    dropZone.style.background = "#e0e7ff";
+    dropZone.style.borderColor = "#2563eb";
+});
+dropZone.addEventListener("dragleave", () => {
+    dropZone.style.background = "#fff";
+    dropZone.style.borderColor = "#ccc";
+});
+
+// Drop handler
+dropZone.addEventListener("drop", (e) => {
+    const files = e.dataTransfer.files;
+    if (!files.length) return;
+    setFile(files[0]);
+});
+
+// File select handler
+fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) {
+        setFile(fileInput.files[0]);
+    }
+});
+
+// Set file safely
+function setFile(file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+
+    fileNameSpan.textContent = file.name;
+    fileInfo.style.display = "block";
+    dropZone.innerText = "📂 File selected";
+}
+
+// Clear file
+clearFileBtn.addEventListener("click", () => {
+    fileInput.value = "";
+    fileInfo.style.display = "none";
+    dropZone.innerText = "Drag & drop a file here or click to upload";
+});
+
+
+// Dark Mode
+darkModeToggle.addEventListener("change", () => {
+    if(darkModeToggle.checked){
+        document.body.style.background = "#1e293b";
+        document.body.style.color = "#f1f5f9";
+    } else {
+        document.body.style.background = "#f4f6f9";
+        document.body.style.color = "#000";
+    }
+});
+
+// Summarize
+btn.addEventListener("click", async () => {
+    const text = textInput.value;
+    const file = fileInput.files[0];
+    const length = lengthSelect.value;
+    const bullet = bulletCheckbox.checked;
+
+    if (!text && !file) {
+        alert("Please enter text or upload a file");
+        return;
+    }
+
+    btn.disabled = true;
+    loader.style.display = "block";
+    result.style.display = "none";
+
+    const formData = new FormData();
+    if (text) formData.append("text", text);
+    if (file) formData.append("file", file);
+    formData.append("length", length);
+    formData.append("bullet", bullet);
+
+    try {
+        const response = await fetch("http://127.0.0.1:8000/summarize", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.summary) {
+            summaryText.textContent = data.summary;
+            result.style.display = "block";
+        } else {
+            alert("Error: " + (data.error || "Unknown error"));
+        }
+    } catch (err) {
+        alert("Failed to connect to backend");
+        console.error(err);
+    }
+
+    loader.style.display = "none";
+    btn.disabled = false;
+});
+
+// Download summary
+downloadBtn.addEventListener("click", () => {
+    const blob = new Blob([summaryText.textContent], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "summary.txt";
+    link.click();
+});
+</script>
+</body>
+</html>
