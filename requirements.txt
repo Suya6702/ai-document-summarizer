@@ -1,7 +1,8 @@
 fastapi
 uvicorn
 transformers
-torch
+torch==2.2.2+cpu
 PyPDF2
 python-docx
 python-multipart
+
