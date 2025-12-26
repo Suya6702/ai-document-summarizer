@@ -2,7 +2,9 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from summarizer import summarize_text
+# from summarizer import summarize_text
+from .summarizer import summarize_text
+
 from extractor import extract_text_from_file
 
 app = FastAPI(title="AI Document Summarizer")
@@ -47,3 +49,4 @@ async def summarize(
         "length": length,
         "bullet": bullet
     }
+
